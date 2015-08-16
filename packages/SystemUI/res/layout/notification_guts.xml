@@ -75,6 +75,15 @@
                     android:textColor="@color/notification_guts_text_color"
                     />
         </LinearLayout>
+	 <ImageButton style="@android:style/Widget.Material.Light.Button.Borderless.Small"
+                 android:id="@+id/notification_inspect_filter_alert"
+                 android:layout_width="52dp"
+                 android:layout_height="match_parent"
+                 android:layout_weight="0"
+                 android:gravity="center"
+                 android:src="@drawable/notification_guts_ic_ringer_mute"
+                 android:visibility="gone"
+                 />
 
         <ImageButton style="@android:style/Widget.Material.Light.Button.Borderless.Small"
                  android:id="@+id/notification_inspect_app_provided_settings"

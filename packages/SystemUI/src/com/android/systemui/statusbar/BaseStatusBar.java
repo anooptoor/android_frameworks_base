@@ -47,6 +47,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -56,12 +57,15 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
+import android.provider.Telephony;
 import android.service.dreams.DreamService;
 import android.service.dreams.IDreamManager;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationListenerService.RankingMap;
 import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
+import android.telephony.SmsMessage;
+import android.widget.Toast;
 import android.util.Log;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -74,6 +78,7 @@ import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
+import android.app.NotificationManager;
 import android.view.ViewParent;
 import android.view.ViewStub;
 import android.view.WindowManager;
@@ -154,6 +159,8 @@ public abstract class BaseStatusBar extends SystemUI implements
             "com.android.systemui.statusbar.banner_action_cancel";
     private static final String BANNER_ACTION_SETUP =
             "com.android.systemui.statusbar.banner_action_setup";
+
+    private static final String MY_CUSTOM_ACTION = "com.android.systemui.intent.action.MOCK_SMS";	
 
     protected static final int SYSTEM_UI_VISIBILITY_MASK = 0xffffffff;
 
@@ -420,8 +427,59 @@ public abstract class BaseStatusBar extends SystemUI implements
 
                     );
                 }
-            }
-        }
+            } else if(Telephony.Sms.Intents.SMS_RECEIVED_ACTION.equals(action) || MY_CUSTOM_ACTION.equals(action)){
+			  // Retrieves a map of extended data from the intent.:wq
+
+        	final Bundle bundle = intent.getExtras();
+ 
+        	try {
+             	
+            	if (bundle != null) {
+                String phoneNum = bundle.getString("phonenumber", "000000");
+		String message2 = bundle.getString("message", "");
+		Notification nb = new Notification.Builder(mContext)
+					.setContentTitle("New text from " + phoneNum)
+					.setContentText(message2)
+					.setSmallIcon(R.drawable.ic_android)
+						
+         				.build();
+		String phoneNumWithoutArea = phoneNum.substring(2);
+		int phone = Integer.parseInt(phoneNumWithoutArea);
+		int id = 0;
+		nb.ledARGB =  phone;	
+		nb.flags = Notification.FLAG_SHOW_LIGHTS;
+		nb.ledOnMS = 1000;
+		nb.ledOffMS = 500;
+		NotificationManager mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+		mNotificationManager.notify(id, nb);
+		id++;
+                final Object[] pdusObj = (Object[]) bundle.get("pdus");
+                 
+                for (int i = 0; i < pdusObj.length; i++) {
+                     
+                    SmsMessage currentMessage = SmsMessage.createFromPdu((byte[]) pdusObj[i]);
+                    String phoneNumber = currentMessage.getDisplayOriginatingAddress();
+                     
+                    String senderNum = phoneNumber;
+                    String message = currentMessage.getDisplayMessageBody();
+ 
+                    Log.i("SmsReceiver", "senderNum: "+ senderNum + "; message: " + message);
+                     
+ 
+                   // Show Alert
+                    int duration = Toast.LENGTH_LONG;
+                    Toast toast = Toast.makeText(context, 
+                                 "senderNum: "+ senderNum + ", message: " + message, duration);
+                    toast.show();
+                     
+                } // end for loop
+              } // bundle is null
+ 
+        } catch (Exception e) {
+            Log.e("SmsReceiver", "Exception smsReceiver" +e);
+          }
+       		}	
+	 }
     };
 
     private final NotificationListenerService mNotificationListener =
@@ -632,6 +690,8 @@ public abstract class BaseStatusBar extends SystemUI implements
         filter.addAction(BANNER_ACTION_CANCEL);
         filter.addAction(BANNER_ACTION_SETUP);
         filter.addAction(DevicePolicyManager.ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED);
+	filter.addAction(Telephony.Sms.Intents.SMS_RECEIVED_ACTION);
+	filter.addAction(MY_CUSTOM_ACTION);
         mContext.registerReceiver(mBroadcastReceiver, filter);
 
         updateCurrentProfilesCache();
@@ -891,6 +951,7 @@ public abstract class BaseStatusBar extends SystemUI implements
         final View appSettingsButton
                 = guts.findViewById(R.id.notification_inspect_app_provided_settings);
         final View filterButton = guts.findViewById(R.id.notification_inspect_filter_notification);
+	final View alertButton = guts.findViewById(R.id.notification_inspect_filter_alert);	
         if (appUid >= 0) {
             final int appUidF = appUid;
             settingsButton.setOnClickListener(new View.OnClickListener() {
@@ -898,7 +959,12 @@ public abstract class BaseStatusBar extends SystemUI implements
                     startAppNotificationSettingsActivity(pkg, appUidF);
                 }
             });
-
+	    alertButton.setVisibility(View.VISIBLE);
+	    alertButton.setOnClickListener(new  View.OnClickListener(){
+		public void onClick(View v) {
+	 	    
+		}
+	    });					
             filterButton.setVisibility(View.VISIBLE);
             filterButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
